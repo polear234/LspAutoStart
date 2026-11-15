@@ -78,6 +78,12 @@ public class KeepAliveService extends Service {
                     | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                     | Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             startActivity(launch);
+
+            // 按需切后台
+            if (Prefs.isMinimize(this)) {
+                Backgrounder.moveToBack(this, pkg,
+                        Prefs.getMinimizeDelaySec(this) * 1000L, null);
+            }
         } catch (Throwable t) {
             android.util.Log.e("LspAutoStart", "launch " + pkg + " failed: " + t);
         }

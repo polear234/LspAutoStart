@@ -24,13 +24,42 @@ public class ToggleSwitch extends View {
     private float anim = 0f; // 0=off 1=on
     private ValueAnimator va;
 
+    /** 是否在被点击时自动翻转并回调（默认关闭，由调用方决定语义）。 */
+    private boolean autoToggle = false;
+    private OnCheckedChange listener;
+
+    public interface OnCheckedChange {
+        void onChanged(boolean checked);
+    }
+
+    /**
+     * 让开关自己处理点击：翻转状态并回调。
+     * 注意：View 一旦 setClickable(true) 就会消费触摸事件，
+     * 不设置这个的话点击开关会没有任何反应（也不会冒泡到父容器）。
+     */
+    public void setAutoToggle(OnCheckedChange l) {
+        this.autoToggle = true;
+        this.listener = l;
+        setClickable(true);
+    }
+
+    @Override
+    public boolean performClick() {
+        boolean handled = super.performClick();
+        if (autoToggle) {
+            setChecked(!checked, true);
+            if (listener != null) listener.onChanged(checked);
+            return true;
+        }
+        return handled;
+    }
+
     public ToggleSwitch(Context context) {
         super(context);
         knob.setColor(0xFFFFFFFF);
         shadow.setColor(0x22000000);
         shadow.setStyle(Paint.Style.FILL);
-        // 允许单独点击（用于取消选中）
-        setClickable(true);
+        setClickable(false);
         setFocusable(true);
     }
 

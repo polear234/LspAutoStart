@@ -133,6 +133,21 @@ public class Module implements IXposedHookLoadPackage {
 
             ctx.startActivity(intent);
             XposedBridge.log(TAG + ": 已拉起 " + target);
+
+            // 按需把目标 App 切到后台
+            if (readMinimize()) {
+                final int md = readMinimizeDelaySec();
+                XposedBridge.log(TAG + ": " + md + " 秒后切到后台");
+                Backgrounder.moveToBack(ctx, target, md * 1000L,
+                        new Backgrounder.Callback() {
+                            @Override
+                            public void done(boolean ok) {
+                                XposedBridge.log(TAG + (ok
+                                        ? ": 已切到后台 " + target
+                                        : ": 切后台失败 " + target));
+                            }
+                        });
+            }
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": 拉起失败 " + t);
         }
@@ -167,5 +182,19 @@ public class Module implements IXposedHookLoadPackage {
         if (p == null) return 15;
         int v = p.getInt(Prefs.KEY_DELAY, 15);
         return v < 0 ? 0 : (v > 600 ? 600 : v);
+    }
+
+    /** 启动后是否切到后台。 */
+    static boolean readMinimize() {
+        XSharedPreferences p = prefs();
+        return p != null && p.getBoolean(Prefs.KEY_MINIMIZE, false);
+    }
+
+    /** 启动后多久切后台（秒）。 */
+    static int readMinimizeDelaySec() {
+        XSharedPreferences p = prefs();
+        if (p == null) return 3;
+        int v = p.getInt(Prefs.KEY_MINIMIZE_DELAY, 3);
+        return v < 0 ? 0 : (v > 120 ? 120 : v);
     }
 }

@@ -14,6 +14,10 @@ public final class Prefs {
     public static final String KEY_PKG = "target_pkg";
     public static final String KEY_ENABLED = "enabled";
     public static final String KEY_DELAY = "boot_delay";
+    /** 启动后是否把目标 App 切到后台。 */
+    public static final String KEY_MINIMIZE = "minimize_after_launch";
+    /** 启动后多久切到后台（秒）。 */
+    public static final String KEY_MINIMIZE_DELAY = "minimize_delay";
 
     private Prefs() {}
 
@@ -43,5 +47,23 @@ public final class Prefs {
 
     public static void setDelaySec(Context ctx, int sec) {
         open(ctx).edit().putInt(KEY_DELAY, sec).apply();
+    }
+
+    /** 启动后是否自动把目标 App 切到后台。 */
+    public static boolean isMinimize(Context ctx) {
+        return open(ctx).getBoolean(KEY_MINIMIZE, false);
+    }
+
+    public static void setMinimize(Context ctx, boolean v) {
+        open(ctx).edit().putBoolean(KEY_MINIMIZE, v).apply();
+    }
+
+    /** 启动后多久切后台（秒）。 */
+    public static int getMinimizeDelaySec(Context ctx) {
+        return open(ctx).getInt(KEY_MINIMIZE_DELAY, 3);
+    }
+
+    public static void setMinimizeDelaySec(Context ctx, int sec) {
+        open(ctx).edit().putInt(KEY_MINIMIZE_DELAY, sec).apply();
     }
 }

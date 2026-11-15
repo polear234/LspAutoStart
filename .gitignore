@@ -16,3 +16,6 @@ local.properties
 
 # 但保留编译用的 stub
 !app/libs/xposed-api-stub.jar
+
+# 构建中间产物
+build-manual/

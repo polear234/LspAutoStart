@@ -29,6 +29,8 @@ public class MainActivity extends Activity {
     private TextView targetState;
     private TextView delayValue;
     private ToggleSwitch enableSwitch;
+    private ToggleSwitch minSwitch;
+    private TextView minDelayValue;
     private TextView enabledTag;
 
     private View homePage;
@@ -149,7 +151,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.6 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.7 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -227,7 +229,17 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams eslp = new LinearLayout.LayoutParams(
                 Miuix.dp(this, 50), Miuix.dp(this, 31));
         enableSwitch.setChecked(Prefs.isEnabled(this), false);
+
+        // 开关自己处理点击，翻转后写配置
+        enableSwitch.setAutoToggle(new ToggleSwitch.OnCheckedChange() {
+            @Override
+            public void onChanged(boolean checked) {
+                Prefs.setEnabled(MainActivity.this, checked);
+                refreshExceptSwitch();
+            }
+        });
         enableRow.addView(enableSwitch, eslp);
+
         Miuix.clickable(enableRow, 0);
         enableRow.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -235,10 +247,55 @@ public class MainActivity extends Activity {
                 boolean next = !Prefs.isEnabled(MainActivity.this);
                 Prefs.setEnabled(MainActivity.this, next);
                 enableSwitch.setChecked(next, true);
-                refresh();
+                refreshExceptSwitch();
             }
         });
         behaviorCard.addView(enableRow);
+
+        behaviorCard.addView(Miuix.divider(this));
+
+        // 启动后切后台
+        LinearLayout minRow = Miuix.rowItem(this, "启动后切到后台",
+                "拉起后自动把该 App 退到后台，不打断你");
+        minSwitch = new ToggleSwitch(this);
+        LinearLayout.LayoutParams mslp = new LinearLayout.LayoutParams(
+                Miuix.dp(this, 50), Miuix.dp(this, 31));
+        minSwitch.setChecked(Prefs.isMinimize(this), false);
+        minSwitch.setAutoToggle(new ToggleSwitch.OnCheckedChange() {
+            @Override
+            public void onChanged(boolean checked) {
+                Prefs.setMinimize(MainActivity.this, checked);
+                refreshExceptSwitch();
+            }
+        });
+        minRow.addView(minSwitch, mslp);
+        Miuix.clickable(minRow, 0);
+        minRow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean next = !Prefs.isMinimize(MainActivity.this);
+                Prefs.setMinimize(MainActivity.this, next);
+                minSwitch.setChecked(next, true);
+                refreshExceptSwitch();
+            }
+        });
+        behaviorCard.addView(minRow);
+
+        behaviorCard.addView(Miuix.divider(this));
+
+        // 切后台时机
+        LinearLayout minDelayRow = Miuix.rowItem(this, "切后台时机",
+                "等界面显示出来后再退，太快会白屏");
+        minDelayValue = Miuix.secondary(this, "3 秒", 15);
+        minDelayRow.addView(minDelayValue);
+        Miuix.clickable(minDelayRow, 0);
+        minDelayRow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showMinimizeDelayDialog();
+            }
+        });
+        behaviorCard.addView(minDelayRow);
 
         root.addView(behaviorCard);
 
@@ -303,7 +360,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.6 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.7 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -367,7 +424,7 @@ public class MainActivity extends Activity {
         root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout infoCard = Miuix.card(this);
-        infoCard.addView(infoRow("版本", "2.6"));
+        infoCard.addView(infoRow("版本", "2.7"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("包名", "io.polear234.autostart"));
         infoCard.addView(Miuix.divider(this));
@@ -695,6 +752,29 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
+    private void showMinimizeDelayDialog() {
+        final String[] options = {"1 秒", "3 秒", "5 秒", "10 秒", "20 秒"};
+        final int[] values = {1, 3, 5, 10, 20};
+        int cur = Prefs.getMinimizeDelaySec(this);
+        int checked = 1;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] == cur) { checked = i; break; }
+        }
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("启动后多久切到后台")
+                .setSingleChoiceItems(options, checked,
+                        new android.content.DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(android.content.DialogInterface d, int which) {
+                                Prefs.setMinimizeDelaySec(MainActivity.this, values[which]);
+                                d.dismiss();
+                                refreshExceptSwitch();
+                            }
+                        })
+                .show();
+    }
+
     private void showDelayDialog() {
         final String[] options = {"立即（0 秒）", "5 秒", "15 秒", "30 秒", "60 秒"};
         final int[] values = {0, 5, 15, 30, 60};
@@ -738,6 +818,14 @@ public class MainActivity extends Activity {
     }
 
     private void refresh() {
+        refreshExceptSwitch();
+        if (enableSwitch != null) {
+            enableSwitch.setChecked(Prefs.isEnabled(this), true);
+        }
+    }
+
+    /** 刷新除开关外的所有 UI（开关自己触发的场景用这个，避免回环）。 */
+    private void refreshExceptSwitch() {
         String pkg = Prefs.getTargetPkg(this);
         boolean enabled = Prefs.isEnabled(this);
         int delay = Prefs.getDelaySec(this);
@@ -769,8 +857,13 @@ public class MainActivity extends Activity {
 
         delayValue.setText(delay == 0 ? "立即" : delay + " 秒");
 
-        if (enableSwitch != null) {
-            enableSwitch.setChecked(enabled, true);
+        if (minSwitch != null) {
+            minSwitch.setChecked(Prefs.isMinimize(this), false);
+        }
+        if (minDelayValue != null) {
+            int md = Prefs.getMinimizeDelaySec(this);
+            minDelayValue.setText(md + " 秒");
+            minDelayValue.setAlpha(Prefs.isMinimize(this) ? 1f : 0.4f);
         }
 
         if (enabledTag != null) {
