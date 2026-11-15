@@ -2,10 +2,12 @@
 
 Lsposed 模块：应用自启动管理 / 保活。
 
+> 需要 Root + LSPosed（Zygisk）。无 Root 环境无法使用。
+
 ## 功能
 - 开机自动启动指定应用
 - 进程保活（可选）
-- 无需 Root，仅需 LSPosed / Xposed 框架
+- 基于 LSPosed / Xposed 框架（**需要 Root**）
 
 ## 模块结构
 ```
@@ -43,9 +45,19 @@ cd LspAutoStart
 产物：`app/build/outputs/apk/release/app-release.apk`
 
 ## 安装
-1. 手机安装 [Lsposed](https://github.com/LSPosed/LSPosed) 或 [EdXposed](https://github.com/ElderDrivers/EdXposed)
-2. 安装编译好的 `app-release.apk`
-3. 在 Lsposed 管理器中勾选模块并重启
+
+> ⚠️ **必须已 Root**：LSPosed 依赖 Magisk / KernelSU / APatch 提供的 Zygisk 环境，无 Root 的手机无法使用本模块。
+
+前提条件：
+- 已解锁 Bootloader
+- 已安装 Magisk（或 KernelSU / APatch）
+- 已启用 Zygisk 并安装 [LSPosed](https://github.com/LSPosed/LSPosed)（Zygisk 版）
+
+步骤：
+1. 安装编译好的 `app-release.apk`
+2. 打开 LSPosed 管理器 → 模块 → 启用 **LspAutoStart**
+3. 勾选作用域中的应用
+4. 重启手机生效
 
 ## 许可证
 MIT
