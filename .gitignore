@@ -20,3 +20,5 @@ Thumbs.db
 *.apk
 *.aar
 *.ap_
+# local artifacts
+*.deb
