@@ -1,13 +1,13 @@
 plugins { id 'com.android.application' }
 android {
-    namespace 'com.example.lspautostart'
+    namespace 'io.polear234.autostart'
     compileSdk 34
     defaultConfig {
-        applicationId "com.example.lspautostart"
+        applicationId "io.polear234.autostart"
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 4
+        versionName "2.0"
     }
     buildTypes {
         release { minifyEnabled false }
