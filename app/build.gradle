@@ -6,11 +6,30 @@ android {
         applicationId "io.polear234.autostart"
         minSdk 21
         targetSdk 34
-        versionCode 4
-        versionName "2.0"
+        versionCode 5
+        versionName "2.1"
     }
+
+    // 签名配置：CI 通过环境变量注入，本地无配置时自动跳过
+    signingConfigs {
+        release {
+            def storePath = System.getenv("KEYSTORE_FILE")
+            if (storePath != null && !storePath.isEmpty()) {
+                storeFile file(storePath)
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias System.getenv("KEY_ALIAS") ?: ""
+                keyPassword System.getenv("KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
-        release { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (System.getenv("KEYSTORE_FILE") != null) {
+                signingConfig signingConfigs.release
+            }
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

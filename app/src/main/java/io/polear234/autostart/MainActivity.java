@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SystemBars.apply(this);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Miuix.BG);
@@ -192,20 +193,24 @@ public class MainActivity extends Activity {
     }
 
     /** 让内容避开状态栏和导航栏，同时保证背景铺满全屏不出黑边。 */
-    private void applySystemBarInsets(final View content) {
-        final int baseTop = content.getPaddingTop();
-        final int baseBottom = content.getPaddingBottom();
-        content.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+    private void applySystemBarInsets(View content) {
+        final View target = content;
+        final int baseTop = target.getPaddingTop();
+        final int baseBottom = target.getPaddingBottom();
+
+        target.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
             @Override
             public android.view.WindowInsets onApplyWindowInsets(View v,
                     android.view.WindowInsets insets) {
                 int top = insets.getSystemWindowInsetTop();
                 int bottom = insets.getSystemWindowInsetBottom();
-                v.setPadding(v.getPaddingLeft(), baseTop + top,
-                        v.getPaddingRight(), baseBottom + bottom);
+                target.setPadding(target.getPaddingLeft(), baseTop + top,
+                        target.getPaddingRight(), baseBottom + bottom);
                 return insets;
             }
         });
+        // 主动请求一次，否则部分系统不会自动派发
+        target.requestApplyInsets();
     }
 
     private LinearLayout.LayoutParams wrap() {

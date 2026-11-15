@@ -46,6 +46,7 @@ public class AppPickerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SystemBars.apply(this);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -133,6 +134,7 @@ public class AppPickerActivity extends Activity {
                 return insets;
             }
         });
+        header.requestApplyInsets();
     }
 
     /** 读取可启动的应用。 */

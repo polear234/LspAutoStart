@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 透明系统栏 + 浅色图标，避免底部黑边 -->
+    <!-- 只用 API 21 以下可安全处理的属性；浅色系统栏由代码强制设置 -->
     <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F7F7F8</item>
+        <item name="android:colorBackground">#F7F7F8</item>
         <item name="android:statusBarColor">#F7F7F8</item>
         <item name="android:navigationBarColor">#F7F7F8</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:windowBackground">#F7F7F8</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>
