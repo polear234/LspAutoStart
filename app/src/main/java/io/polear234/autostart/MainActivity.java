@@ -151,7 +151,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.7 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.8 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -360,7 +360,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.7 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.8 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -424,7 +424,7 @@ public class MainActivity extends Activity {
         root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout infoCard = Miuix.card(this);
-        infoCard.addView(infoRow("版本", "2.7"));
+        infoCard.addView(infoRow("版本", "2.8"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("包名", "io.polear234.autostart"));
         infoCard.addView(Miuix.divider(this));
