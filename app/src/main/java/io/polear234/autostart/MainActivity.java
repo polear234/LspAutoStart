@@ -64,6 +64,14 @@ public class MainActivity extends Activity {
         appPicker.setOnPickListener(new AppPickerView.OnPickListener() {
             @Override
             public void onPick(String pkg) {
+                if (pkg == null || pkg.isEmpty()) {
+                    // 取消选中
+                    Prefs.setTargetPkg(MainActivity.this, "");
+                    refresh();
+                    appPicker.setSelected("");
+                    Toast.makeText(MainActivity.this, "已取消选择", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 Prefs.setTargetPkg(MainActivity.this, pkg);
                 refresh();
                 // 停留在列表页，让用户继续浏览
@@ -141,7 +149,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.5 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.6 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -295,7 +303,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.5 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.6 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -359,7 +367,7 @@ public class MainActivity extends Activity {
         root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout infoCard = Miuix.card(this);
-        infoCard.addView(infoRow("版本", "2.5"));
+        infoCard.addView(infoRow("版本", "2.6"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("包名", "io.polear234.autostart"));
         infoCard.addView(Miuix.divider(this));

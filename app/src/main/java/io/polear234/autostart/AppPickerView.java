@@ -68,6 +68,21 @@ public class AppPickerView extends LinearLayout {
         if (adapter != null) adapter.notifyDataSetChanged();
     }
 
+    /** 切换某个应用的选中状态：已选中则取消，未选中则选中。 */
+    private void toggleSelection(String pkg) {
+        if (pkg == null) return;
+        if (pkg.equals(selectedPkg)) {
+            // 取消选中
+            selectedPkg = "";
+            if (adapter != null) adapter.notifyDataSetChanged();
+            if (listener != null) listener.onPick("");   // 空串 = 取消
+        } else {
+            selectedPkg = pkg;
+            if (adapter != null) adapter.notifyDataSetChanged();
+            if (listener != null) listener.onPick(pkg);
+        }
+    }
+
     private void build() {
         Context c = getContext();
         int pad = Miuix.dp(c, 20);
@@ -271,7 +286,7 @@ public class AppPickerView extends LinearLayout {
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             // 开关
-            ToggleSwitch toggle = new ToggleSwitch(c);
+            final ToggleSwitch toggle = new ToggleSwitch(c);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
                     Miuix.dp(c, 48), Miuix.dp(c, 30));
             tlp.rightMargin = Miuix.dp(c, 6);
@@ -283,13 +298,19 @@ public class AppPickerView extends LinearLayout {
             arrow.setAlpha(0.35f);
             row.addView(arrow);
 
-            // 整行点击 = 选中
+            // 整行点击 = 切换选中状态（已选中则取消）
             row.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    selectedPkg = e.pkg;
-                    notifyDataSetChanged();
-                    if (listener != null) listener.onPick(e.pkg);
+                    toggleSelection(e.pkg);
+                }
+            });
+
+            // 开关单独点击也生效，且不冒泡到整行
+            toggle.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    toggleSelection(e.pkg);
                 }
             });
 

@@ -29,6 +29,9 @@ public class ToggleSwitch extends View {
         knob.setColor(0xFFFFFFFF);
         shadow.setColor(0x22000000);
         shadow.setStyle(Paint.Style.FILL);
+        // 允许单独点击（用于取消选中）
+        setClickable(true);
+        setFocusable(true);
     }
 
     public void setChecked(boolean c, boolean animate) {
