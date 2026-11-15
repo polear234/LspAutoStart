@@ -6,8 +6,8 @@ android {
         applicationId "io.polear234.autostart"
         minSdk 21
         targetSdk 34
-        versionCode 6
-        versionName "2.2"
+        versionCode 7
+        versionName "2.3"
     }
 
     // 签名配置：CI 通过环境变量注入，本地无配置时自动跳过

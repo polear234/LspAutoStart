@@ -18,8 +18,8 @@ import android.widget.TextView;
 public final class Miuix {
 
     /** HyperOS / Miuix 常用背景色 */
-    public static final int BG = 0xFFF7F7F8;
-    public static final int CARD = 0xFFFFFFFF;
+    public static final int BG = 0x00000000;
+    public static final int CARD = 0xF7FFFFFF;
     public static final int TEXT_PRIMARY = 0xFF191919;
     public static final int TEXT_SECONDARY = 0x8C191919;
     public static final int TEXT_HINT = 0x61191919;

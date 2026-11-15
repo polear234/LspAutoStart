@@ -15,14 +15,12 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-/** LspAutoStart 主界面（Miuix 风格 + 底部 Dock）。 */
+/** LspAutoStart 主界面：HyperIsland 风格（渐变背景 + 大图标 + 底部 Dock）。 */
 public class MainActivity extends Activity {
 
-    private static final int REQ_PICK = 1001;
     private static final int TAB_HOME = 0;
-    private static final int TAB_ABOUT = 1;
-
-    private int currentTab = TAB_HOME;
+    private static final int TAB_APPS = 1;
+    private static final int TAB_ABOUT = 3;
 
     // 主页控件
     private TextView targetName;
@@ -33,50 +31,71 @@ public class MainActivity extends Activity {
     private TextView enableState;
     private TextView enabledTag;
 
-    // 页面容器
     private View homePage;
     private View aboutPage;
+    private AppPickerView appPicker;
+    private int currentTab = TAB_HOME;
 
-    // Dock 元素
-    private DockIcon homeIcon;
-    private DockIcon aboutIcon;
-    private TextView homeLabel;
-    private TextView aboutLabel;
-    private LinearLayout homeItem;
-    private LinearLayout aboutItem;
-
-    private LinearLayout dockBar;
+    private DockIcon[] dockIcons = new DockIcon[4];
+    private TextView[] dockLabels = new TextView[4];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SystemBars.apply(this);
 
-        // 垂直：内容区 + 底部 Dock
+        // 最外层：渐变背景铺满（包括系统栏区域）
+        FrameLayout window = new FrameLayout(this);
+        window.setBackgroundColor(0xFFEFEAF8);
+
+        GradientBg bg = new GradientBg(this);
+        window.addView(bg, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // 内容：垂直 = 页面区 + Dock
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.VERTICAL);
-        outer.setBackgroundColor(Miuix.BG);
 
-        // ---- 内容区（两个页面叠放）----
         FrameLayout content = new FrameLayout(this);
-        content.setBackgroundColor(Miuix.BG);
-
         homePage = buildHomePage();
         aboutPage = buildAboutPage();
+
+        appPicker = new AppPickerView(this);
+        appPicker.setOnPickListener(new AppPickerView.OnPickListener() {
+            @Override
+            public void onPick(String pkg) {
+                Prefs.setTargetPkg(MainActivity.this, pkg);
+                refresh();
+                // 停留在列表页，让用户继续浏览
+                appPicker.setSelected(pkg);
+                Toast.makeText(MainActivity.this, "已选择：" + pkg, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onBack() {
+                switchTab(TAB_HOME);
+            }
+        });
+
         content.addView(homePage, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         content.addView(aboutPage, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        content.addView(appPicker, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         outer.addView(content, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // ---- 底部 Dock ----
-        outer.addView(buildDock(), new LinearLayout.LayoutParams(
+        LinearLayout dock = buildDock();
+        outer.addView(dock, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        setContentView(outer);
-        applyInsets(homePage, aboutPage, dockBar);
+        window.addView(outer, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        setContentView(window);
+        applyInsets(homePage, aboutPage, appPicker, dock);
 
         switchTab(TAB_HOME);
         refresh();
@@ -86,22 +105,42 @@ public class MainActivity extends Activity {
 
     private View buildHomePage() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Miuix.BG);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
+        scroll.setVerticalScrollBarEnabled(false);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        int pad = Miuix.dp(this, 16);
-        root.setPadding(pad, Miuix.dp(this, 28), pad, Miuix.dp(this, 24));
+        int pad = Miuix.dp(this, 20);
+        root.setPadding(pad, Miuix.dp(this, 40), pad, Miuix.dp(this, 24));
         scroll.addView(root, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // 标题
-        root.addView(Miuix.pageTitle(this, "开机自启"));
-        TextView sub = Miuix.secondary(this, "由系统框架在开机后自动拉起指定应用", 13);
-        LinearLayout.LayoutParams subLp = wrap();
-        subLp.topMargin = Miuix.dp(this, 6);
-        root.addView(sub, subLp);
+        // ---- 顶部：大图标 + 标题 ----
+        AppIconView icon = new AppIconView(this);
+        int is = Miuix.dp(this, 84);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(is, is);
+        ilp.gravity = Gravity.CENTER_HORIZONTAL;
+        ilp.topMargin = Miuix.dp(this, 12);
+        root.addView(icon, ilp);
+
+        TextView title = new TextView(this);
+        title.setText("LspAutoStart");
+        title.setTextSize(34);
+        title.setTextColor(0xFF3D1F6B);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER_HORIZONTAL);
+        title.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams tlp = wrap();
+        tlp.topMargin = Miuix.dp(this, 16);
+        root.addView(title, tlp);
+
+        TextView ver = Miuix.secondary(this, "2.3 (2026111501)", 14);
+        ver.setGravity(Gravity.CENTER_HORIZONTAL);
+        ver.setAlpha(0.55f);
+        LinearLayout.LayoutParams vlp = wrap();
+        vlp.topMargin = Miuix.dp(this, 8);
+        root.addView(ver, vlp);
 
         // ===== 目标应用 =====
         root.addView(Miuix.sectionHeader(this, "目标应用"));
@@ -110,35 +149,35 @@ public class MainActivity extends Activity {
         LinearLayout targetRow = new LinearLayout(this);
         targetRow.setOrientation(LinearLayout.HORIZONTAL);
         targetRow.setGravity(Gravity.CENTER_VERTICAL);
-        targetRow.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 16),
-                Miuix.dp(this, 16), Miuix.dp(this, 16));
+        targetRow.setPadding(Miuix.dp(this, 18), Miuix.dp(this, 16),
+                Miuix.dp(this, 18), Miuix.dp(this, 16));
 
         targetIcon = new ImageView(this);
-        int is = Miuix.dp(this, 44);
-        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(is, is);
-        ilp.rightMargin = Miuix.dp(this, 14);
-        targetRow.addView(targetIcon, ilp);
+        int tis = Miuix.dp(this, 46);
+        LinearLayout.LayoutParams tilp = new LinearLayout.LayoutParams(tis, tis);
+        tilp.rightMargin = Miuix.dp(this, 16);
+        targetRow.addView(targetIcon, tilp);
 
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
 
-        targetName = Miuix.primary(this, "未选择", 16);
+        targetName = Miuix.primary(this, "未选择", 17);
         texts.addView(targetName);
 
-        targetPkg = Miuix.secondary(this, "点击选择要自启的应用", 12);
+        targetPkg = Miuix.secondary(this, "点击选择要自启的应用", 13);
         targetPkg.setPadding(0, Miuix.dp(this, 4), 0, 0);
+        targetPkg.setAlpha(0.5f);
         texts.addView(targetPkg);
 
         targetRow.addView(texts, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        targetRow.addView(Miuix.secondary(this, "›", 22));
+        targetRow.addView(Miuix.secondary(this, "›", 24));
 
         Miuix.clickable(targetRow, 0);
         targetRow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivityForResult(
-                        new Intent(MainActivity.this, AppPickerActivity.class), REQ_PICK);
+                switchTab(TAB_APPS);
             }
         });
         targetCard.addView(targetRow);
@@ -147,7 +186,7 @@ public class MainActivity extends Activity {
         targetState = Miuix.secondary(this, "", 12);
         LinearLayout.LayoutParams tsl = wrap();
         tsl.topMargin = Miuix.dp(this, 8);
-        tsl.leftMargin = Miuix.dp(this, 8);
+        tsl.leftMargin = Miuix.dp(this, 10);
         root.addView(targetState, tsl);
 
         // ===== 行为 =====
@@ -184,8 +223,8 @@ public class MainActivity extends Activity {
 
         root.addView(behaviorCard);
 
-        // ===== 操作 =====
-        root.addView(Miuix.sectionHeader(this, "操作"));
+        // ===== 模块 =====
+        root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout actionCard = Miuix.card(this);
         LinearLayout testRow = Miuix.rowItem(this, "立即启动一次", "手动测试，确认包名和启动入口正常");
@@ -198,31 +237,15 @@ public class MainActivity extends Activity {
             }
         });
         actionCard.addView(testRow);
-        root.addView(actionCard);
 
-        // ===== 使用状态 =====
-        root.addView(Miuix.sectionHeader(this, "使用状态"));
+        actionCard.addView(Miuix.divider(this));
 
-        LinearLayout statusCard = Miuix.card(this);
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.VERTICAL);
-        statusRow.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 14),
-                Miuix.dp(this, 16), Miuix.dp(this, 14));
-
+        LinearLayout statusRow = Miuix.rowItem(this, "使用状态", "勾选系统框架后重启生效");
         enabledTag = Miuix.primary(this, "", 14);
         statusRow.addView(enabledTag);
+        actionCard.addView(statusRow);
 
-        TextView steps = Miuix.secondary(this,
-                "1. 选择目标应用并保存\n"
-                        + "2. Lsposed 启用本模块\n"
-                        + "3. 生效范围勾选「系统框架」\n"
-                        + "4. 重启手机生效", 12);
-        steps.setPadding(0, Miuix.dp(this, 10), 0, 0);
-        steps.setLineSpacing(Miuix.dp(this, 4), 1f);
-        statusRow.addView(steps);
-
-        statusCard.addView(statusRow);
-        root.addView(statusCard);
+        root.addView(actionCard);
 
         return scroll;
     }
@@ -231,33 +254,103 @@ public class MainActivity extends Activity {
 
     private View buildAboutPage() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Miuix.BG);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
+        scroll.setVerticalScrollBarEnabled(false);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        int pad = Miuix.dp(this, 16);
-        root.setPadding(pad, Miuix.dp(this, 28), pad, Miuix.dp(this, 24));
+        int pad = Miuix.dp(this, 20);
+        root.setPadding(pad, Miuix.dp(this, 40), pad, Miuix.dp(this, 24));
         scroll.addView(root, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        root.addView(Miuix.pageTitle(this, "关于"));
-        TextView sub = Miuix.secondary(this, "逐行说明这个模块做了什么", 13);
-        LinearLayout.LayoutParams subLp = wrap();
-        subLp.topMargin = Miuix.dp(this, 6);
-        root.addView(sub, subLp);
+        // 顶部图标
+        AppIconView icon = new AppIconView(this);
+        int is = Miuix.dp(this, 84);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(is, is);
+        ilp.gravity = Gravity.CENTER_HORIZONTAL;
+        ilp.topMargin = Miuix.dp(this, 12);
+        root.addView(icon, ilp);
 
-        // 应用信息
-        root.addView(Miuix.sectionHeader(this, "版本信息"));
+        TextView title = new TextView(this);
+        title.setText("LspAutoStart");
+        title.setTextSize(34);
+        title.setTextColor(0xFF3D1F6B);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER_HORIZONTAL);
+        title.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams tlp = wrap();
+        tlp.topMargin = Miuix.dp(this, 16);
+        root.addView(title, tlp);
+
+        TextView ver = Miuix.secondary(this, "2.3 (2026111501)", 14);
+        ver.setGravity(Gravity.CENTER_HORIZONTAL);
+        ver.setAlpha(0.55f);
+        LinearLayout.LayoutParams vlp = wrap();
+        vlp.topMargin = Miuix.dp(this, 8);
+        root.addView(ver, vlp);
+
+        // 开发者
+        root.addView(Miuix.sectionHeader(this, "开发者"));
+
+        LinearLayout devCard = Miuix.card(this);
+        LinearLayout devRow = new LinearLayout(this);
+        devRow.setOrientation(LinearLayout.HORIZONTAL);
+        devRow.setGravity(Gravity.CENTER_VERTICAL);
+        devRow.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 14),
+                Miuix.dp(this, 16), Miuix.dp(this, 14));
+
+        AvatarView avatar = new AvatarView(this);
+        int as = Miuix.dp(this, 46);
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(as, as);
+        alp.rightMargin = Miuix.dp(this, 14);
+        devRow.addView(avatar, alp);
+
+        LinearLayout devTexts = new LinearLayout(this);
+        devTexts.setOrientation(LinearLayout.VERTICAL);
+        devTexts.addView(Miuix.primary(this, "polear234", 17));
+        TextView gh = Miuix.secondary(this, "@polear234", 13);
+        gh.setAlpha(0.5f);
+        gh.setPadding(0, Miuix.dp(this, 4), 0, 0);
+        devTexts.addView(gh);
+        devRow.addView(devTexts, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        devRow.addView(Miuix.secondary(this, "›", 24));
+
+        Miuix.clickable(devRow, 0);
+        devRow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openUrl("https://github.com/polear234");
+            }
+        });
+        devCard.addView(devRow);
+        root.addView(devCard);
+
+        // 讨论
+        root.addView(Miuix.sectionHeader(this, "讨论"));
+
+        LinearLayout discussCard = Miuix.card(this);
+        LinearLayout tgRow = Miuix.rowItem(this, "GitHub", "查看源码与更新");
+        tgRow.addView(Miuix.secondary(this, "🔗", 16));
+        Miuix.clickable(tgRow, 0);
+        tgRow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openUrl("https://github.com/polear234/LspAutoStart");
+            }
+        });
+        discussCard.addView(tgRow);
+        root.addView(discussCard);
+
+        // 模块
+        root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout infoCard = Miuix.card(this);
-        infoCard.addView(infoRow("应用名", "LspAutoStart"));
-        infoCard.addView(Miuix.divider(this));
-        infoCard.addView(infoRow("版本", "2.2"));
+        infoCard.addView(infoRow("版本", "2.3"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("包名", "io.polear234.autostart"));
-        infoCard.addView(Miuix.divider(this));
-        infoCard.addView(infoRow("作者", "polear234"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("协议", "MIT License"));
         root.addView(infoCard);
@@ -268,71 +361,42 @@ public class MainActivity extends Activity {
         LinearLayout howCard = Miuix.card(this);
         LinearLayout howBox = new LinearLayout(this);
         howBox.setOrientation(LinearLayout.VERTICAL);
-        howBox.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 14),
-                Miuix.dp(this, 16), Miuix.dp(this, 14));
+        howBox.setPadding(Miuix.dp(this, 18), Miuix.dp(this, 16),
+                Miuix.dp(this, 18), Miuix.dp(this, 16));
 
         TextView how = Miuix.secondary(this,
-                "本模块 hook 了系统框架（android 进程）的 SystemServer。\n\n"
-                        + "系统启动完成后，以系统进程的身份启动目标应用。"
-                        + "因为发起者是系统本身，不受 Android 的"
-                        + "「后台启动 Activity」限制，所以比在目标应用内部 hook 更可靠。\n\n"
+                "本模块 hook 系统框架（android 进程）的 SystemServer。"
+                        + "系统启动完成后，以系统进程身份启动目标应用。\n\n"
+                        + "因为发起者是系统本身，不受 Android「后台启动 Activity」限制，"
+                        + "所以比在目标应用内部 hook 更可靠 —— "
                         + "即使目标应用完全冷启动、没有任何自启能力，也能被拉起。", 13);
         how.setLineSpacing(Miuix.dp(this, 5), 1f);
         howBox.addView(how);
         howCard.addView(howBox);
         root.addView(howCard);
 
-        // 特性
-        root.addView(Miuix.sectionHeader(this, "功能特性"));
-
-        LinearLayout featCard = Miuix.card(this);
-        featCard.addView(featureRow("系统框架级拉起", "不受后台启动限制"));
-        featCard.addView(Miuix.divider(this));
-        featCard.addView(featureRow("应用列表选择", "扫描已安装应用，支持搜索"));
-        featCard.addView(Miuix.divider(this));
-        featCard.addView(featureRow("开机延迟", "0 / 5 / 15 / 30 / 60 秒可选"));
-        featCard.addView(Miuix.divider(this));
-        featCard.addView(featureRow("随时开关", "无需卸载即可停用"));
-        featCard.addView(Miuix.divider(this));
-        featCard.addView(featureRow("立即测试", "手动触发一次，验证配置"));
-        root.addView(featCard);
-
-        // 注意
+        // 注意事项
         root.addView(Miuix.sectionHeader(this, "注意事项"));
 
         LinearLayout warnCard = Miuix.card(this);
         LinearLayout warnBox = new LinearLayout(this);
         warnBox.setOrientation(LinearLayout.VERTICAL);
-        warnBox.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 14),
-                Miuix.dp(this, 16), Miuix.dp(this, 14));
+        warnBox.setPadding(Miuix.dp(this, 18), Miuix.dp(this, 16),
+                Miuix.dp(this, 18), Miuix.dp(this, 16));
 
         TextView warn = Miuix.secondary(this,
                 "• 需要 Root + Lsposed 环境\n"
                         + "• 生效范围必须勾选「系统框架」\n"
                         + "• 部分 ROM 需额外授予「后台弹出界面」权限\n"
                         + "• 修改设置后需重启才能自动生效", 13);
-        warn.setLineSpacing(Miuix.dp(this, 5), 1f);
+        warn.setLineSpacing(Miuix.dp(this, 6), 1f);
         warnBox.addView(warn);
-
-        TextView link = Miuix.primary(this, "github.com/polear234/LspAutoStart", 12);
-        link.setTextColor(Miuix.ACCENT);
-        link.setPadding(0, Miuix.dp(this, 12), 0, 0);
-        link.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://github.com/polear234/LspAutoStart")));
-                } catch (Throwable ignored) {}
-            }
-        });
-        warnBox.addView(link);
-
         warnCard.addView(warnBox);
         root.addView(warnCard);
 
         TextView footer = Miuix.secondary(this, "Made with ♥ by polear234", 11);
         footer.setGravity(Gravity.CENTER_HORIZONTAL);
+        footer.setAlpha(0.4f);
         LinearLayout.LayoutParams flp = wrap();
         flp.topMargin = Miuix.dp(this, 28);
         root.addView(footer, flp);
@@ -340,139 +404,139 @@ public class MainActivity extends Activity {
         return scroll;
     }
 
+    private void openUrl(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+        } catch (Throwable t) {
+            Toast.makeText(this, "无法打开链接", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private LinearLayout infoRow(String k, String v) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 13),
-                Miuix.dp(this, 16), Miuix.dp(this, 13));
+        row.setPadding(Miuix.dp(this, 18), Miuix.dp(this, 14),
+                Miuix.dp(this, 18), Miuix.dp(this, 14));
 
         row.addView(Miuix.primary(this, k, 15),
-                new LinearLayout.LayoutParams(0,
-                        ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView val = Miuix.secondary(this, v, 14);
         val.setGravity(Gravity.END);
+        val.setAlpha(0.6f);
         row.addView(val);
-        return row;
-    }
-
-    private LinearLayout featureRow(String title, String desc) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setPadding(Miuix.dp(this, 16), Miuix.dp(this, 13),
-                Miuix.dp(this, 16), Miuix.dp(this, 13));
-
-        row.addView(Miuix.primary(this, title, 15));
-
-        TextView d = Miuix.secondary(this, desc, 12);
-        d.setPadding(0, Miuix.dp(this, 4), 0, 0);
-        row.addView(d);
         return row;
     }
 
     // ==================== 底部 Dock ====================
 
-    private View buildDock() {
-        dockBar = new LinearLayout(this);
-        dockBar.setOrientation(LinearLayout.HORIZONTAL);
-        dockBar.setGravity(Gravity.CENTER);
-        dockBar.setBackgroundColor(Miuix.CARD);
-        dockBar.setPadding(Miuix.dp(this, 12), Miuix.dp(this, 8),
-                Miuix.dp(this, 12), Miuix.dp(this, 8));
-        dockBar.setElevation(Miuix.dp(this, 8));
-
-        // 顶部分割线
+    private LinearLayout buildDock() {
         LinearLayout wrapDock = new LinearLayout(this);
         wrapDock.setOrientation(LinearLayout.VERTICAL);
 
         View line = new View(this);
-        line.setBackgroundColor(Miuix.DIVIDER);
+        line.setBackgroundColor(0x14191919);
         wrapDock.addView(line, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Miuix.dp(this, 0.5f))));
 
-        // ---- 主页 ----
-        homeItem = buildDockItem(DockIcon.HOME, "主页");
-        // ---- 关于 ----
-        aboutItem = buildDockItem(DockIcon.INFO, "关于");
+        LinearLayout dock = new LinearLayout(this);
+        dock.setOrientation(LinearLayout.HORIZONTAL);
+        dock.setGravity(Gravity.CENTER);
+        dock.setBackgroundColor(0xF2FBFAFD);
+        dock.setPadding(Miuix.dp(this, 8), Miuix.dp(this, 8),
+                Miuix.dp(this, 8), Miuix.dp(this, 6));
 
-        dockBar.addView(homeItem, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        dockBar.addView(aboutItem, new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        String[] labels = {"主页", "应用", "设置", "关于"};
+        for (int i = 0; i < 4; i++) {
+            final int kind = i;
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
+            item.setGravity(Gravity.CENTER);
+            item.setPadding(Miuix.dp(this, 4), Miuix.dp(this, 6),
+                    Miuix.dp(this, 4), Miuix.dp(this, 6));
+            item.setClickable(true);
+            item.setFocusable(true);
 
-        wrapDock.addView(dockBar);
+            DockIcon icon = new DockIcon(this);
+            icon.kind(i);
+            int isz = Miuix.dp(this, 26);
+            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(isz, isz);
+            ilp.gravity = Gravity.CENTER_HORIZONTAL;
+            item.addView(icon, ilp);
+            dockIcons[i] = icon;
+
+            TextView tv = new TextView(this);
+            tv.setText(labels[i]);
+            tv.setTextSize(10.5f);
+            tv.setGravity(Gravity.CENTER);
+            tv.setIncludeFontPadding(false);
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            tlp.topMargin = Miuix.dp(this, 4);
+            item.addView(tv, tlp);
+            dockLabels[i] = tv;
+
+            item.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    onDockClick(kind);
+                }
+            });
+
+            dock.addView(item, new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        }
+
+        wrapDock.addView(dock);
         return wrapDock;
     }
 
-    private LinearLayout buildDockItem(final int kind, String label) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setPadding(Miuix.dp(this, 8), Miuix.dp(this, 6),
-                Miuix.dp(this, 8), Miuix.dp(this, 6));
-        item.setClickable(true);
-        item.setFocusable(true);
-
-        DockIcon icon = new DockIcon(this);
-        icon.kind(kind);
-        int is = Miuix.dp(this, 24);
-        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(is, is);
-        ilp.gravity = Gravity.CENTER_HORIZONTAL;
-        item.addView(icon, ilp);
-
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextSize(10);
-        tv.setGravity(Gravity.CENTER);
-        tv.setIncludeFontPadding(false);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tlp.topMargin = Miuix.dp(this, 3);
-        item.addView(tv, tlp);
-
-        if (kind == DockIcon.HOME) {
-            homeIcon = icon;
-            homeLabel = tv;
-        } else {
-            aboutIcon = icon;
-            aboutLabel = tv;
+    private void onDockClick(int index) {
+        switch (index) {
+            case 0:
+                switchTab(TAB_HOME);
+                break;
+            case 1:
+                switchTab(TAB_APPS);
+                break;
+            case 3:
+                switchTab(TAB_ABOUT);
+                break;
+            default:
+                Toast.makeText(this, "设置项都在主页，可直接调整", Toast.LENGTH_SHORT).show();
+                break;
         }
-
-        item.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                switchTab(kind == DockIcon.HOME ? TAB_HOME : TAB_ABOUT);
-            }
-        });
-        return item;
     }
 
     private void switchTab(int tab) {
         currentTab = tab;
-        boolean home = tab == TAB_HOME;
+        homePage.setVisibility(tab == TAB_HOME ? View.VISIBLE : View.GONE);
+        appPicker.setVisibility(tab == TAB_APPS ? View.VISIBLE : View.GONE);
+        if (tab == TAB_APPS) {
+            appPicker.setSelected(Prefs.getTargetPkg(this));
+        }
+        aboutPage.setVisibility(tab == TAB_ABOUT ? View.VISIBLE : View.GONE);
 
-        homePage.setVisibility(home ? View.VISIBLE : View.GONE);
-        aboutPage.setVisibility(home ? View.GONE : View.VISIBLE);
+        int active = 0xFF3D1F6B;
+        int inactive = 0x99191919;
 
-        int active = Miuix.ACCENT;
-        int inactive = Miuix.TEXT_HINT;
+        for (int i = 0; i < 4; i++) {
+            boolean on = (i == 0 && tab == TAB_HOME)
+                    || (i == 1 && tab == TAB_APPS)
+                    || (i == 3 && tab == TAB_ABOUT);
 
-        homeIcon.setColor(home ? active : inactive);
-        homeIcon.setFilled(home);
-        homeLabel.setTextColor(home ? active : inactive);
-        homeLabel.setTypeface(home ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
-
-        aboutIcon.setColor(home ? inactive : active);
-        aboutIcon.setFilled(!home);
-        aboutLabel.setTextColor(home ? inactive : active);
-        aboutLabel.setTypeface(home ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
+            dockIcons[i].setColor(on ? active : inactive);
+            dockIcons[i].setFilled(on);
+            dockLabels[i].setTextColor(on ? active : inactive);
+            dockLabels[i].setTypeface(on ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+        }
     }
 
     // ==================== 系统栏适配 ====================
 
-    /** 内容避开状态栏；Dock 避开导航栏，保证底部不留黑边。 */
-    private void applyInsets(final View home, final View about, final View dock) {
+    private void applyInsets(final View home, final View about,
+                             final AppPickerView apps, final View dock) {
         final int dockBaseBottom = dock.getPaddingBottom();
         View root = (View) dock.getParent();
 
@@ -485,6 +549,7 @@ public class MainActivity extends Activity {
 
                 applyTopPadding(home, top);
                 applyTopPadding(about, top);
+                applyTopPadding(apps, top);
                 dock.setPadding(dock.getPaddingLeft(), dock.getPaddingTop(),
                         dock.getPaddingRight(), dockBaseBottom + bottom);
                 return insets;
@@ -494,6 +559,16 @@ public class MainActivity extends Activity {
     }
 
     private void applyTopPadding(View page, int top) {
+        if (page instanceof AppPickerView) {
+            View head = ((AppPickerView) page).getChildAt(0);
+            if (head != null && head.getTag() == null) {
+                head.setTag("inset");
+                int base = head.getPaddingTop();
+                head.setPadding(head.getPaddingLeft(), base + top,
+                        head.getPaddingRight(), head.getPaddingBottom());
+            }
+            return;
+        }
         if (page instanceof ScrollView) {
             View child = ((ScrollView) page).getChildAt(0);
             if (child != null && child.getTag() == null) {
@@ -505,24 +580,9 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ==================== 其余逻辑 ====================
-
     private LinearLayout.LayoutParams wrap() {
         return new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_PICK && resultCode == RESULT_OK && data != null) {
-            String pkg = data.getStringExtra(AppPickerActivity.EXTRA_RESULT_PKG);
-            if (pkg != null && !pkg.isEmpty()) {
-                Prefs.setTargetPkg(this, pkg);
-                refresh();
-                Toast.makeText(this, "已选择：" + pkg, Toast.LENGTH_SHORT).show();
-            }
-        }
     }
 
     private void showDelayDialog() {
@@ -600,11 +660,11 @@ public class MainActivity extends Activity {
         delayValue.setText(delay == 0 ? "立即" : delay + " 秒");
 
         enableState.setText(enabled ? "已启用" : "已停用");
-        enableState.setTextColor(enabled ? Miuix.ACCENT : Miuix.TEXT_HINT);
+        enableState.setTextColor(enabled ? 0xFF3D1F6B : Miuix.TEXT_HINT);
 
         if (enabledTag != null) {
             boolean ready = pkg != null && !pkg.isEmpty() && enabled;
-            enabledTag.setText(ready ? "● 已就绪" : "○ 待配置");
+            enabledTag.setText(ready ? "● 就绪" : "○ 待配置");
             enabledTag.setTextColor(ready ? 0xFF34C759 : Miuix.TEXT_HINT);
             enabledTag.setTypeface(Typeface.DEFAULT_BOLD);
         }

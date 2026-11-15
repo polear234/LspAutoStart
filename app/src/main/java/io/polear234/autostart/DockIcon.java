@@ -2,30 +2,32 @@ package io.polear234.autostart;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.view.View;
 
 /**
- * Dock 图标：用代码绘制，不依赖图片资源，保证任何环境下都能渲染。
+ * Dock 图标：代码绘制，不依赖图片资源。
+ * 主页=实心房子，应用=四宫格，设置=齿轮，关于=圆圈 i。
  */
 public class DockIcon extends View {
 
     public static final int HOME = 0;
-    public static final int INFO = 1;
+    public static final int APPS = 1;
+    public static final int SETTINGS = 2;
+    public static final int INFO = 3;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint cut = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
+
     private int kind = HOME;
     private int color = 0xFF191919;
     private boolean filled = false;
 
     public DockIcon(Context context) {
         super(context);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(dp(1.8f));
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeJoin(Paint.Join.ROUND);
     }
@@ -45,7 +47,6 @@ public class DockIcon extends View {
         invalidate();
     }
 
-    /** 选中态：实心；未选中：描边。 */
     public void setFilled(boolean f) {
         this.filled = f;
         invalidate();
@@ -54,73 +55,124 @@ public class DockIcon extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        float w = getWidth();
-        float h = getHeight();
-        float cx = w / 2f;
-        float cy = h / 2f;
-        float s = Math.min(w, h) * 0.72f; // 图标本体尺寸
+        float w = getWidth(), h = getHeight();
+        if (w <= 0 || h <= 0) return;
+        float cx = w / 2f, cy = h / 2f;
+        float s = Math.min(w, h) * 0.62f;
 
         paint.setColor(color);
         paint.setStyle(filled ? Paint.Style.FILL : Paint.Style.STROKE);
-        paint.setStrokeWidth(dp(1.8f));
+        paint.setStrokeWidth(dp(1.9f));
+        cut.setColor(0xFFFFFFFF);
+        cut.setStyle(Paint.Style.FILL);
 
-        if (kind == HOME) {
-            drawHome(canvas, cx, cy, s);
-        } else {
-            drawInfo(canvas, cx, cy, s);
+        switch (kind) {
+            case HOME:
+                drawHome(canvas, cx, cy, s);
+                break;
+            case APPS:
+                drawApps(canvas, cx, cy, s);
+                break;
+            case SETTINGS:
+                drawGear(canvas, cx, cy, s);
+                break;
+            default:
+                drawInfo(canvas, cx, cy, s);
+                break;
         }
     }
 
+    /** 房子：实心时挖出门洞 */
     private void drawHome(Canvas c, float cx, float cy, float s) {
-        float halfW = s / 2f;
-        float roofH = s * 0.42f;
-        float bodyH = s * 0.62f;
+        float half = s * 0.52f;
+        float roofTop = cy - half * 1.02f;
+        float eave = cy - half * 0.16f;
+        float bw = s * 0.78f;
+        float bottom = cy + half * 0.92f;
 
-        // 屋顶
         path.reset();
-        path.moveTo(cx, cy - halfW * 1.05f);
-        path.lineTo(cx + halfW * 1.06f, cy - roofH * 0.34f);
-        path.lineTo(cx - halfW * 1.06f, cy - roofH * 0.34f);
+        path.moveTo(cx, roofTop);
+        path.lineTo(cx + half * 1.08f, eave);
+        path.lineTo(cx - half * 1.08f, eave);
         path.close();
-        c.drawPath(path, paint);
 
-        // 屋身
-        float bw = s * 0.74f;
-        float top = cy - roofH * 0.34f;
-        RectF body = new RectF(cx - bw / 2f, top, cx + bw / 2f, top + bodyH);
         if (filled) {
-            c.drawRoundRect(body, dp(2), dp(2), paint);
-            // 门洞挖空（用背景色画）
-            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-            p.setColor(Miuix.CARD);
-            float dw = bw * 0.3f;
-            float dh = bodyH * 0.46f;
-            RectF door = new RectF(cx - dw / 2f, body.bottom - dh,
-                    cx + dw / 2f, body.bottom);
-            c.drawRoundRect(door, dp(1.6f), dp(1.6f), p);
+            c.drawPath(path, paint);
+            RectF body = new RectF(cx - bw / 2f, eave - dp(1), cx + bw / 2f, bottom);
+            c.drawRoundRect(body, dp(2.5f), dp(2.5f), paint);
+            // 门洞
+            float dw = bw * 0.34f, dh = (bottom - eave) * 0.5f;
+            RectF door = new RectF(cx - dw / 2f, bottom - dh, cx + dw / 2f, bottom);
+            c.drawRoundRect(door, dp(2), dp(2), cut);
         } else {
-            c.drawRoundRect(body, dp(2), dp(2), paint);
+            c.drawPath(path, paint);
+            RectF body = new RectF(cx - bw / 2f, eave - dp(1), cx + bw / 2f, bottom);
+            c.drawRoundRect(body, dp(2.5f), dp(2.5f), paint);
         }
     }
 
-    private void drawInfo(Canvas c, float cx, float cy, float s) {
-        float r = s * 0.46f;
+    /** 四宫格 */
+    private void drawApps(Canvas c, float cx, float cy, float s) {
+        float gap = s * 0.16f;
+        float cell = (s - gap) / 2f;
+        float r = dp(2.2f);
+        float ox = cx - (cell + gap / 2f);
+        float oy = cy - (cell + gap / 2f);
+
+        for (int i = 0; i < 4; i++) {
+            float x = ox + (i % 2) * (cell + gap);
+            float y = oy + (i / 2) * (cell + gap);
+            RectF rect = new RectF(x, y, x + cell, y + cell);
+            if (filled) {
+                c.drawRoundRect(rect, r, r, paint);
+            } else {
+                c.drawRoundRect(rect, r, r, paint);
+            }
+        }
+    }
+
+    /** 齿轮：外圈 + 内圈 */
+    private void drawGear(Canvas c, float cx, float cy, float s) {
+        float outer = s * 0.5f;
+        float tooth = s * 0.12f;
+        int teeth = 8;
+
         if (filled) {
-            paint.setStyle(Paint.Style.FILL);
+            // 实心：先画圆，再用背景色挖齿轮槽
+            c.drawCircle(cx, cy, outer, paint);
+            cut.setColor(0xFFFBFBFD);
+            for (int i = 0; i < teeth; i++) {
+                double a = Math.PI * 2 * i / teeth;
+                float x = (float) (cx + Math.cos(a) * outer * 1.02);
+                float y = (float) (cy + Math.sin(a) * outer * 1.02);
+                c.drawCircle(x, y, tooth * 0.55f, cut);
+            }
+            // 中心孔
+            c.drawCircle(cx, cy, outer * 0.38f, cut);
+        } else {
+            c.drawCircle(cx, cy, outer, paint);
+            c.drawCircle(cx, cy, outer * 0.38f, paint);
+        }
+    }
+
+    /** 圆圈 i */
+    private void drawInfo(Canvas c, float cx, float cy, float s) {
+        float r = s * 0.5f;
+        if (filled) {
             c.drawCircle(cx, cy, r, paint);
-            // 白色 i
-            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-            p.setColor(Miuix.CARD);
-            p.setStrokeCap(Paint.Cap.ROUND);
-            p.setStrokeWidth(dp(2f));
-            c.drawPoint(cx, cy - r * 0.42f, p);
-            c.drawLine(cx, cy - r * 0.08f, cx, cy + r * 0.46f, p);
+            cut.setColor(0xFFFFFFFF);
+            cut.setStrokeCap(Paint.Cap.ROUND);
+            cut.setStyle(Paint.Style.FILL_AND_STROKE);
+            cut.setStrokeWidth(dp(2.1f));
+            c.drawPoint(cx, cy - r * 0.4f, cut);
+            c.drawLine(cx, cy - r * 0.05f, cx, cy + r * 0.44f, cut);
+            cut.setStyle(Paint.Style.FILL);
         } else {
             c.drawCircle(cx, cy, r, paint);
             paint.setStrokeCap(Paint.Cap.ROUND);
-            paint.setStrokeWidth(dp(2f));
-            c.drawPoint(cx, cy - r * 0.42f, paint);
-            c.drawLine(cx, cy - r * 0.08f, cx, cy + r * 0.46f, paint);
+            paint.setStrokeWidth(dp(2.1f));
+            c.drawPoint(cx, cy - r * 0.4f, paint);
+            c.drawLine(cx, cy - r * 0.05f, cx, cy + r * 0.44f, paint);
         }
     }
 }
