@@ -98,6 +98,8 @@ public final class Miuix {
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(roundRect(CARD, dp(c, 18)));
+        // 轻微投影，让卡片浮在渐变背景上更有层次
+        elevate(card, 3);
         return card;
     }
 
@@ -133,13 +135,41 @@ public final class Miuix {
         return row;
     }
 
-    /** 给列表项加点击水波纹。 */
+    /**
+     * 给列表项加点击水波纹，并保持原有圆角。
+     * 直接套 selectableItemBackground 会把背景换成方形，圆角就没了；
+     * 这里用 RippleDrawable 包一层，mask 用同半径的圆角形状。
+     */
     public static void clickable(View v, int radiusPx) {
-        TypedValue out = new TypedValue();
-        v.getContext().getTheme().resolveAttribute(
-                android.R.attr.selectableItemBackground, out, true);
-        v.setBackgroundResource(out.resourceId);
+        android.graphics.drawable.Drawable existing = v.getBackground();
+        int r = radiusPx > 0 ? radiusPx : dp(v.getContext(), 18);
+
+        GradientDrawable mask = roundRect(0xFFFFFFFF, r);
+
+        android.graphics.drawable.RippleDrawable ripple =
+                new android.graphics.drawable.RippleDrawable(
+                        android.content.res.ColorStateList.valueOf(0x1A000000),
+                        existing, mask);
+        v.setBackground(ripple);
         v.setClickable(true);
         v.setFocusable(true);
+    }
+
+    /** 让卡片/行有圆角阴影（elevation 按背景轮廓裁剪，所以必须先设圆角背景）。 */
+    public static void elevate(View v, final int elevationDp) {
+        v.setElevation(dp(v.getContext(), elevationDp));
+        v.setClipToOutline(true);
+        v.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, android.graphics.Outline outline) {
+                android.graphics.drawable.Drawable d = view.getBackground();
+                if (d != null) {
+                    d.getOutline(outline);
+                } else {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(),
+                            dp(view.getContext(), 18));
+                }
+            }
+        });
     }
 }

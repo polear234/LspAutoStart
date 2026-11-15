@@ -242,6 +242,7 @@ public class AppPickerView extends LinearLayout {
             row.setPadding(Miuix.dp(c, 14), Miuix.dp(c, 12),
                     Miuix.dp(c, 14), Miuix.dp(c, 12));
             row.setBackground(Miuix.roundRect(0xFFFFFFFF, Miuix.dp(c, 18)));
+            Miuix.elevate(row, 2);
 
             // 图标
             ImageView icon = new ImageView(c);

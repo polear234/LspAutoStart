@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
 
     private static final int TAB_HOME = 0;
     private static final int TAB_APPS = 1;
-    private static final int TAB_ABOUT = 3;
+    private static final int TAB_ABOUT = 2;
 
     // 主页控件
     private TextView targetName;
@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
     private ImageView targetIcon;
     private TextView targetState;
     private TextView delayValue;
-    private TextView enableState;
+    private ToggleSwitch enableSwitch;
     private TextView enabledTag;
 
     private View homePage;
@@ -36,8 +36,8 @@ public class MainActivity extends Activity {
     private AppPickerView appPicker;
     private int currentTab = TAB_HOME;
 
-    private DockIcon[] dockIcons = new DockIcon[4];
-    private TextView[] dockLabels = new TextView[4];
+    private DockIcon[] dockIcons = new DockIcon[3];
+    private TextView[] dockLabels = new TextView[3];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.3 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.4 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -209,13 +209,18 @@ public class MainActivity extends Activity {
         behaviorCard.addView(Miuix.divider(this));
 
         LinearLayout enableRow = Miuix.rowItem(this, "启用开机自启", "关闭后即使重启也不会拉起");
-        enableState = Miuix.secondary(this, "已启用", 15);
-        enableRow.addView(enableState);
+        enableSwitch = new ToggleSwitch(this);
+        LinearLayout.LayoutParams eslp = new LinearLayout.LayoutParams(
+                Miuix.dp(this, 50), Miuix.dp(this, 31));
+        enableSwitch.setChecked(Prefs.isEnabled(this), false);
+        enableRow.addView(enableSwitch, eslp);
         Miuix.clickable(enableRow, 0);
         enableRow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Prefs.setEnabled(MainActivity.this, !Prefs.isEnabled(MainActivity.this));
+                boolean next = !Prefs.isEnabled(MainActivity.this);
+                Prefs.setEnabled(MainActivity.this, next);
+                enableSwitch.setChecked(next, true);
                 refresh();
             }
         });
@@ -284,7 +289,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.3 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.4 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -348,7 +353,7 @@ public class MainActivity extends Activity {
         root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout infoCard = Miuix.card(this);
-        infoCard.addView(infoRow("版本", "2.3"));
+        infoCard.addView(infoRow("版本", "2.4"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("包名", "io.polear234.autostart"));
         infoCard.addView(Miuix.divider(this));
@@ -447,9 +452,9 @@ public class MainActivity extends Activity {
         dock.setPadding(Miuix.dp(this, 8), Miuix.dp(this, 8),
                 Miuix.dp(this, 8), Miuix.dp(this, 6));
 
-        String[] labels = {"主页", "应用", "设置", "关于"};
-        for (int i = 0; i < 4; i++) {
-            final int kind = i;
+        String[] labels = {"主页", "应用", "关于"};
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
             LinearLayout item = new LinearLayout(this);
             item.setOrientation(LinearLayout.VERTICAL);
             item.setGravity(Gravity.CENTER);
@@ -459,7 +464,8 @@ public class MainActivity extends Activity {
             item.setFocusable(true);
 
             DockIcon icon = new DockIcon(this);
-            icon.kind(i);
+            // 0=主页 1=应用 3=关于
+            icon.kind(i == 0 ? DockIcon.HOME : (i == 1 ? DockIcon.APPS : DockIcon.INFO));
             int isz = Miuix.dp(this, 26);
             LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(isz, isz);
             ilp.gravity = Gravity.CENTER_HORIZONTAL;
@@ -480,7 +486,7 @@ public class MainActivity extends Activity {
             item.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    onDockClick(kind);
+                    onDockClick(idx);
                 }
             });
 
@@ -500,31 +506,104 @@ public class MainActivity extends Activity {
             case 1:
                 switchTab(TAB_APPS);
                 break;
-            case 3:
-                switchTab(TAB_ABOUT);
-                break;
             default:
-                Toast.makeText(this, "设置项都在主页，可直接调整", Toast.LENGTH_SHORT).show();
+                switchTab(TAB_ABOUT);
                 break;
         }
     }
 
     private void switchTab(int tab) {
+        if (tab == currentTab) {
+            updateDock(tab);
+            return;
+        }
+        int from = currentTab;
         currentTab = tab;
-        homePage.setVisibility(tab == TAB_HOME ? View.VISIBLE : View.GONE);
-        appPicker.setVisibility(tab == TAB_APPS ? View.VISIBLE : View.GONE);
+        updateDock(tab);
+
         if (tab == TAB_APPS) {
             appPicker.setSelected(Prefs.getTargetPkg(this));
         }
-        aboutPage.setVisibility(tab == TAB_ABOUT ? View.VISIBLE : View.GONE);
+        animatePageSwitch(from, tab);
+    }
 
+    /** 左右滑动切换动画：新页从侧边滑入，旧页反向淡出。 */
+    private void animatePageSwitch(int from, int to) {
+        final View in = pageAt(to);
+        final View out = pageAt(from);
+        if (in == null || out == null) {
+            // 兜底：直接切
+            for (int i = 0; i < 3; i++) {
+                View p = pageAt(i);
+                if (p != null) p.setVisibility(i == to ? View.VISIBLE : View.GONE);
+            }
+            return;
+        }
+
+        final boolean forward = to > from;
+        int dist = getResources().getDisplayMetrics().widthPixels;
+        // 相邻页滑动距离略小，跳页时更远，动感更明显
+        float travel = dist * (Math.abs(to - from) > 1 ? 0.42f : 0.28f);
+
+        in.setVisibility(View.VISIBLE);
+        in.setAlpha(0f);
+        in.setTranslationX(forward ? travel : -travel);
+        in.setScaleX(0.98f);
+        in.setScaleY(0.98f);
+
+        out.setAlpha(1f);
+        out.setTranslationX(0f);
+
+        in.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(260)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.4f))
+                .start();
+
+        out.animate()
+                .translationX(forward ? -travel * 0.55f : travel * 0.55f)
+                .alpha(0f)
+                .scaleX(0.98f)
+                .scaleY(0.98f)
+                .setDuration(200)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator(1.2f))
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        out.setVisibility(View.GONE);
+                        out.setTranslationX(0f);
+                        out.setAlpha(1f);
+                        out.setScaleX(1f);
+                        out.setScaleY(1f);
+                    }
+                })
+                .start();
+    }
+
+    private View pageAt(int tab) {
+        switch (tab) {
+            case TAB_HOME:
+                return homePage;
+            case TAB_APPS:
+                return appPicker;
+            case TAB_ABOUT:
+                return aboutPage;
+            default:
+                return null;
+        }
+    }
+
+    private void updateDock(int tab) {
         int active = 0xFF3D1F6B;
         int inactive = 0x99191919;
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
             boolean on = (i == 0 && tab == TAB_HOME)
                     || (i == 1 && tab == TAB_APPS)
-                    || (i == 3 && tab == TAB_ABOUT);
+                    || (i == 2 && tab == TAB_ABOUT);
 
             dockIcons[i].setColor(on ? active : inactive);
             dockIcons[i].setFilled(on);
@@ -659,8 +738,9 @@ public class MainActivity extends Activity {
 
         delayValue.setText(delay == 0 ? "立即" : delay + " 秒");
 
-        enableState.setText(enabled ? "已启用" : "已停用");
-        enableState.setTextColor(enabled ? 0xFF3D1F6B : Miuix.TEXT_HINT);
+        if (enableSwitch != null) {
+            enableSwitch.setChecked(enabled, true);
+        }
 
         if (enabledTag != null) {
             boolean ready = pkg != null && !pkg.isEmpty() && enabled;
