@@ -84,6 +84,12 @@ public class MainActivity extends Activity {
         content.addView(appPicker, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
+        // 三页叠放，必须先只让主页可见，否则初次启动会全部叠在一起
+        homePage.setVisibility(View.VISIBLE);
+        aboutPage.setVisibility(View.GONE);
+        appPicker.setVisibility(View.GONE);
+        currentTab = TAB_HOME;
+
         outer.addView(content, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -135,7 +141,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.4 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.5 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -289,7 +295,7 @@ public class MainActivity extends Activity {
         tlp.topMargin = Miuix.dp(this, 16);
         root.addView(title, tlp);
 
-        TextView ver = Miuix.secondary(this, "2.4 (2026111501)", 14);
+        TextView ver = Miuix.secondary(this, "2.5 (2026111501)", 14);
         ver.setGravity(Gravity.CENTER_HORIZONTAL);
         ver.setAlpha(0.55f);
         LinearLayout.LayoutParams vlp = wrap();
@@ -353,7 +359,7 @@ public class MainActivity extends Activity {
         root.addView(Miuix.sectionHeader(this, "模块"));
 
         LinearLayout infoCard = Miuix.card(this);
-        infoCard.addView(infoRow("版本", "2.4"));
+        infoCard.addView(infoRow("版本", "2.5"));
         infoCard.addView(Miuix.divider(this));
         infoCard.addView(infoRow("包名", "io.polear234.autostart"));
         infoCard.addView(Miuix.divider(this));
@@ -513,7 +519,7 @@ public class MainActivity extends Activity {
     }
 
     private void switchTab(int tab) {
-        if (tab == currentTab) {
+        if (tab == currentTab && isPageStateConsistent(tab)) {
             updateDock(tab);
             return;
         }
@@ -527,15 +533,32 @@ public class MainActivity extends Activity {
         animatePageSwitch(from, tab);
     }
 
+    /** 校验当前可见状态是否与 tab 一致（防止初启动叠在一起）。 */
+    private boolean isPageStateConsistent(int tab) {
+        for (int i = 0; i < 3; i++) {
+            View p = pageAt(i);
+            if (p == null) continue;
+            boolean shouldShow = i == tab;
+            boolean shown = p.getVisibility() == View.VISIBLE;
+            if (shouldShow != shown) return false;
+        }
+        return true;
+    }
+
     /** 左右滑动切换动画：新页从侧边滑入，旧页反向淡出。 */
     private void animatePageSwitch(int from, int to) {
         final View in = pageAt(to);
         final View out = pageAt(from);
-        if (in == null || out == null) {
-            // 兜底：直接切
+        if (in == null || out == null || from == to) {
+            // 兜底/同页：直接设置可见性，不做动画
             for (int i = 0; i < 3; i++) {
                 View p = pageAt(i);
-                if (p != null) p.setVisibility(i == to ? View.VISIBLE : View.GONE);
+                if (p == null) continue;
+                p.setVisibility(i == to ? View.VISIBLE : View.GONE);
+                p.setAlpha(1f);
+                p.setTranslationX(0f);
+                p.setScaleX(1f);
+                p.setScaleY(1f);
             }
             return;
         }
